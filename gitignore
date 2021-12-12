@@ -1,0 +1,6 @@
+__pycache__/
+data
+temp
+outputs
+checkpoints
+model_data
