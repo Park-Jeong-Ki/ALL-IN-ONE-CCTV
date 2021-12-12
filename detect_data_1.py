@@ -59,26 +59,33 @@ def get_tracking_list (tracker):
     return track_id_list, track_bboxes_list
 
 
-def draw_image(image, cnt_points, bboxes, risks, car_count, parking_bboxes):
+def draw_image(image, cnt_points, bboxes, risks, car_count, parking_bboxes,track_id_list,track_bboxes_array):
 
     if len(bboxes) != 0:
         for risk, box in zip(risks, bboxes):
-            x, y, w, h = box
-            color = (255, 0, 0) if risk > VIOLATE_THRESHOLD else (0, 255, 0)
-            cv2.rectangle(image, (x, y), (x+w, y+h), color, 2)
-            cv2.putText(image, str(int(risk*100)), (x, y), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1.5, (255, 255, 0), 2)
+        # YOLO BBOX 그림
+            color = (255, 0, 0) if risk > 0.25 else (0, 255, 0)
+            if int(box[2]) <= 220:
+                cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]+ int(box[0])), int(box[3])+int(box[1])), color, 2)
+            #cv2.putText(image, str(int(risk*100)), (x, y), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1.5, (255, 255, 0), 2)
 
     if len(parking_bboxes) != 0:
         for box in parking_bboxes:
             x, y, w, h = box
-            cv2.rectangle(image, (x, y), (x+w, y+h), (0, 0, 255), 2)
+            cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
     road_str = ''.join([str(int(car_count[i])) + '/' for i in range(1, len(car_count))])[:-1]
 
     (x1, y1), (x2, y2) = cnt_points
     cv2.line(image, (x1, y1), (x2, y2), (0, 0, 0), 3)
     cv2.putText(image, road_str, (50, 50), cv2.FONT_HERSHEY_COMPLEX_SMALL, 3, (0, 0, 0), 2)
+
+    for track_id,box in zip(track_id_list,track_bboxes_array):
+        if track_id != 15:
+            cv2.putText(image, str(track_id), (int(box[0]), int(box[1])), cv2.FONT_HERSHEY_COMPLEX_SMALL, 2, (0, 255, 0), 2)
     image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
+
+
     
     return image
 
@@ -230,7 +237,7 @@ def main(_argv):
             if id in violate_ids:
                 parking_bboxes.append(track_bboxes_array[i])
 
-        image = draw_image(original_image, lanes['cnt_lane'][1], bboxes, risks, car_count, parking_bboxes)
+        image = draw_image(original_image, lanes['cnt_lane'][1], bboxes, risks, car_count, parking_bboxes,track_id_list,track_bboxes_array)
 
         cv2.imshow("Output Video", image)
         cv2.imwrite('result.jpg', image)

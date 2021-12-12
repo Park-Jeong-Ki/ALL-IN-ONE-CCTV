@@ -15,7 +15,7 @@ def get_lanes(path):
         'solid_lane':[],
         'dashed_lane':[],
         'parking_lane':[],
-        'stop_lane':[]
+        'cnt_lane':[]
     }
 
     with open(path) as fp:
@@ -28,6 +28,8 @@ def get_lanes(path):
             road[obj['label'][-1]] = get_lane_map(image_shape, pts)
         else:
             lanes[obj['label']].append(get_lane_map(image_shape, pts))
+            if obj['label'] == 'cnt_lane':
+                lanes[obj['label']].append(pts)
 
     lanes['road'] = [road[k] for k in sorted(road)]
 

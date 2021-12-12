@@ -3,11 +3,11 @@ import cv2
 import numpy as np
 import os
 import image_util
-BASE_PATH = './video_sample/'
-SAVE_PATH = 'resized/'
+BASE_PATH = './data_3_base'
+SAVE_PATH = './data_3'
 
 # ROI 설정
-ROI_DEFAULT = (700, 400, 1920, 1080)
+ROI_DEFAULT = (470, 110, 1920, 1080)
 roi_rect = ROI_DEFAULT
 
 # ROI 좌표를 CV2 에 맞게 좌표 설정
