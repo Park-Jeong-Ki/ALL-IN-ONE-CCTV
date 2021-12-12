@@ -59,7 +59,7 @@ def get_tracking_list (tracker):
     return track_id_list, track_bboxes_list
 
 
-def draw_image(image, bboxes, risks, car_count, parking_bboxes):
+def draw_image(image, cnt_points, bboxes, risks, car_count, parking_bboxes):
 
     if len(bboxes) != 0:
         for risk, box in zip(risks, bboxes):
@@ -74,6 +74,9 @@ def draw_image(image, bboxes, risks, car_count, parking_bboxes):
             cv2.rectangle(image, (x, y), (x+w, y+h), (0, 0, 255), 2)
 
     road_str = ''.join([str(int(car_count[i])) + '/' for i in range(1, len(car_count))])[:-1]
+
+    (x1, y1), (x2, y2) = cnt_points
+    cv2.line(image, (x1, y1), (x2, y2), (0, 0, 0), 3)
     cv2.putText(image, road_str, (50, 50), cv2.FONT_HERSHEY_COMPLEX_SMALL, 3, (0, 0, 0), 2)
     image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
     
@@ -121,8 +124,11 @@ def main(_argv):
     id_road = np.zeros(shape=1000, dtype=np.uint8)
     id_time = np.zeros(shape=1000)
     id_is_parking_violate = np.zeros(shape=1000, dtype=np.uint8)
+    id_is_count = np.zeros(shape=1000, dtype=np.uint8)
 
     for image in image_list:
+        if image == '.DS_Store':
+            continue
         print(image)
         image_path = os.path.join(image_folder, image)
         original_image = cv2.imread(image_path)
@@ -212,8 +218,8 @@ def main(_argv):
         track_id_list, track_bboxes_list = get_tracking_list(tracker)
         risks = mu.get_risks(lanes['solid_lane'], bboxes)
 
-        car_count, id_road, id_time, id_is_parking_violate = \
-            mu.update(track_bboxes_list, lanes, car_count, track_id_list, id_road, id_time, id_is_parking_violate)
+        car_count, id_road, id_time, id_is_parking_violate, id_is_count = \
+            mu.update(track_bboxes_list, lanes, car_count, track_id_list, id_road, id_time, id_is_parking_violate, id_is_count)
         track_id_list, track_bboxes_array = np.array(track_id_list), np.array(track_bboxes_list)
 
         
@@ -224,7 +230,7 @@ def main(_argv):
             if id in violate_ids:
                 parking_bboxes.append(track_bboxes_array[i])
 
-        image = draw_image(original_image, bboxes, risks, car_count, parking_bboxes)
+        image = draw_image(original_image, lanes['cnt_lane'][1], bboxes, risks, car_count, parking_bboxes)
 
         cv2.imshow("Output Video", image)
         cv2.imwrite('result.jpg', image)

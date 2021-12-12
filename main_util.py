@@ -73,17 +73,27 @@ def update_id_road(bboxes, lanes, ids, id_road):
     return id_road
 
 
-def update(bboxes, lanes, car_count, ids, id_road, id_time, id_is_parking_violate): 
+def update(bboxes, lanes, car_count, ids, id_road, id_time, id_is_parking_violate, id_is_count): 
     if len(bboxes) != 0:
+        idx = 0
         for i, road_num in enumerate(id_road):
-            if i not in ids and road_num != 0:
-                car_count[road_num] += 1
+            if i not in ids:
                 id_road[i] = 0
+            else:
+                if id_is_count[i] == 0:
+                    cnt_lane = lanes['cnt_lane'][0]
+                    x, y, w, h = bboxes[idx]
+                    for b, a in np.argwhere(cnt_lane):
+                        if x < a < x+w and y < b < y+h:
+                            car_count[id_road[i]] += 1
+                            id_is_count[i] = 1
+                            break
+                idx += 1
         id_road = update_id_road(bboxes, lanes, ids, id_road)
         id_time = update_id_time(bboxes, lanes, ids, id_time)
         id_is_parking_violate = check_parking_violate(id_time, id_is_parking_violate)
 
-    return car_count, id_road, id_time, id_is_parking_violate
+    return car_count, id_road, id_time, id_is_parking_violate, id_is_count
 
 
 def update_id_time(bboxes, lanes, ids, id_time):
