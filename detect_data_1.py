@@ -72,7 +72,7 @@ def draw_image(image, cnt_points, bboxes, risks, car_count, parking_bboxes,track
     if len(parking_bboxes) != 0:
         for box in parking_bboxes:
             x, y, w, h = box
-            cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.rectangle(image, (x, y), (x+w, y+h), (255, 0, 0), 2)
 
     road_str = ''.join([str(int(car_count[i])) + '/' for i in range(1, len(car_count))])[:-1]
 

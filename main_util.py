@@ -2,7 +2,7 @@
 import numpy as np
 import cv2
 import time
-import config
+from config import *
                      
         
 def get_risks(lanes, bboxes):
@@ -19,8 +19,7 @@ def get_risk(lanes, bbox):
     else:
         x, y, w, h = bbox
         risks = []
-        image_size = lanes[0].shape
-        base = np.zeros(shape=image_size, dtype=np.uint8) 
+        base = np.zeros(shape=FRAME_SIZE, dtype=np.uint8) 
         cv2.line(base, (x, y+h), (x+w, y+h), 1, 1)
 
         for lane in lanes:
@@ -35,7 +34,7 @@ def get_risk(lanes, bbox):
             else:
                 intersect_pt = intersect_pts[len(intersect_pts)//2]
                 y_coord, x_coord = intersect_pt
-                y1 = y_coord + image_size[0]//20
+                y1 = y_coord + FRAME_SIZE[0]//20
                 x0_line = lane_pts[lane_pts[:, 0] == y_coord][:, 1]
                 x1_line = lane_pts[lane_pts[:, 0] == y1][:, 1]
 
@@ -51,11 +50,9 @@ def get_risk(lanes, bbox):
                     else:
                         a = (y1 - y_coord) / (x1 - x0) # lane의 평균변화율
 
-            dist_from_center = w*abs(a) / (2*abs(a)+2*config.RISK_DETECT_RANGE)
-            # 두 바퀴의 중점에서 가까운 모서리까지의 거리
             dist_from_intersect = x_coord - x if a < 0 else x + w - x_coord
             
-            risk = max(1 - abs(1 - dist_from_intersect / dist_from_center), 0)
+            risk = max(1 - abs(1 - 2*dist_from_intersect * (a + FRONT_SIDE_RATIO) / (a * w)), 0)
             risks.append(risk)
 
         return max(risks)
@@ -119,7 +116,7 @@ def check_parking_violate(id_time, id_violate):
             id_violate[i] = 0
             continue
         now = time.time()
-        if now - t > 30:
+        if now - t > PARKING_VIOLATE_THRESHOLD_SECOND:
             id_violate[i] = 1
 
     return id_violate
