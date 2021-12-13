@@ -1,6 +1,5 @@
 import os
-import json
-import requests
+from config import *
 import io
 from PIL import Image
 import base64
@@ -198,6 +197,38 @@ def get_masked_image(image_np):
 
     roi_image = cv2.bitwise_and(mask2, image_np)
     return roi_image
+
+
+def draw_image(image, lanes, bboxes, parking_violate_bboxes=None, risks=None, car_count=None):
+    
+    if len(bboxes) != 0:
+        if risks is not None:
+            for risk, box in zip(risks, bboxes):
+                x, y, w, h = box
+                color = (255, 0, 0) if risk > VIOLATE_THRESHOLD else (0, 255, 0)
+                cv2.rectangle(image, (x, y), (x+w, y+h), color, 2)
+                cv2.putText(image, str(int(risk*100)), (x, y), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1.5, (255, 255, 0), 2)
+        else:
+            for box in bboxes:
+                x, y, w, h = box
+                cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+
+    if parking_violate_bboxes is not None and len(parking_violate_bboxes) != 0:
+        for box in parking_violate_bboxes:
+            x, y, w, h = box
+            cv2.rectangle(image, (x, y), (x+w, y+h), (255, 0, 0), 2)
+
+    if car_count is not None:
+        road_str = ''.join([str(int(car_count[i])) + '/' for i in range(1, len(car_count))])[:-1]
+        (x1, y1), (x2, y2) = lanes['cnt_lane'][1]
+        cv2.line(image, (x1, y1), (x2, y2), (0, 0, 0), 3)
+        cv2.putText(image, road_str, (50, 50), cv2.FONT_HERSHEY_COMPLEX_SMALL, 3, (0, 0, 0), 2)
+
+    image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
+    cv2.imwrite('result.jpg', image)
+
+    return image
 
 
 if __name__ == "__main__":

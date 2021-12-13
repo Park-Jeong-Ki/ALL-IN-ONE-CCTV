@@ -20,11 +20,14 @@ from get_lane import get_lanes
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 from config import *
+from image_util import draw_image
+import time
 
 # deep sort imports
 from deep_sort import preprocessing, nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
+from deepsort_util import get_tracking_list
 from tools import generate_detections as gdet
 
 
@@ -33,54 +36,14 @@ flags.DEFINE_string('weights', './checkpoints/yolov4-608',
                     'path to weights file')
 flags.DEFINE_integer('size', 608, 'resize images to')
 flags.DEFINE_boolean('tiny', False, 'yolo or yolo-tiny')
-flags.DEFINE_string('lane', 'lane.json', 'path of lane')             
-flags.DEFINE_string('image', './resized', 'path of image')
+flags.DEFINE_string('lane', 'lane_1.json', 'path of lane')             
+flags.DEFINE_string('image', './image_1', 'path of image')
 flags.DEFINE_string('model', 'yolov4', 'yolov3 or yolov4')
 flags.DEFINE_string('output', 'result.jpg', 'path to output image')
 flags.DEFINE_float('iou', 0.45, 'iou threshold')
 flags.DEFINE_float('score', 0.5, 'score threshold')
-flags.DEFINE_string('video', './DEMO.avi', 'path to input video or set to 0 for webcam')
+flags.DEFINE_string('video', None, 'path to input video or set to 0 for webcam')
 
-
-def get_tracking_list (tracker):
-    track_id_list = []
-    track_bboxes_list=[]
-
-    for track in tracker.tracks:
-        if not track.is_confirmed() or track.time_since_update > 1:
-            continue 
-
-        track_id = int(track.track_id)
-        track_id_list.append(track_id)
-        bbox = track.to_tlbr()
-        crop_box = (int(bbox[0]), int(bbox[1]), (int(bbox[2])-int(bbox[0])), (int(bbox[3])-int(bbox[1]))) # x y w h
-        track_bboxes_list.append(crop_box) 
-
-    return track_id_list, track_bboxes_list
-
-
-def draw_image(image, cnt_points, bboxes, risks, car_count, parking_bboxes):
-
-    if len(bboxes) != 0:
-        for risk, box in zip(risks, bboxes):
-            x, y, w, h = box
-            color = (255, 0, 0) if risk > VIOLATE_THRESHOLD else (0, 255, 0)
-            cv2.rectangle(image, (x, y), (x+w, y+h), color, 2)
-            cv2.putText(image, str(int(risk*100)), (x, y), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1.5, (255, 255, 0), 2)
-
-    if len(parking_bboxes) != 0:
-        for box in parking_bboxes:
-            x, y, w, h = box
-            cv2.rectangle(image, (x, y), (x+w, y+h), (0, 0, 255), 2)
-
-    road_str = ''.join([str(int(car_count[i])) + '/' for i in range(1, len(car_count))])[:-1]
-
-    (x1, y1), (x2, y2) = cnt_points
-    cv2.line(image, (x1, y1), (x2, y2), (0, 0, 0), 3)
-    cv2.putText(image, road_str, (50, 50), cv2.FONT_HERSHEY_COMPLEX_SMALL, 3, (0, 0, 0), 2)
-    image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
-    
-    return image
 
 def main(_argv):
     # 1-1. create instance of Deep SORT
@@ -105,14 +68,17 @@ def main(_argv):
     image_folder = FLAGS.image
     video_path = FLAGS.video
     image_list = sorted(os.listdir(image_folder))
+    image_list = list(filter(lambda image_path: image_path.endswith(('.jpg', '.jpeg', '.png')), image_list))
     lanes = get_lanes(FLAGS.lane)
     
 
-    print('frame_size={}'.format(FRAME_SIZE))
-    fps = 15
-    out = None
-    codec = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(video_path, codec, fps, FRAME_SIZE)
+    print('image size={}'.format(IMAGE_SIZE))
+    if video_path is not None:
+        print('make video')
+        fps = 20
+        out = None
+        codec = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(video_path, codec, fps, IMAGE_SIZE)
     
 
     # 1-2. load tflite model if flag is set
@@ -120,16 +86,17 @@ def main(_argv):
         saved_model_loaded = tf.saved_model.load(FLAGS.weights, tags=[tag_constants.SERVING])
         infer = saved_model_loaded.signatures['serving_default']
 
+
     car_count = np.zeros(shape=len(lanes['road'])+1)
-    id_road = np.zeros(shape=1000, dtype=np.uint8)
-    id_time = np.zeros(shape=1000)
-    id_is_parking_violate = np.zeros(shape=1000, dtype=np.uint8)
-    id_is_count = np.zeros(shape=1000, dtype=np.uint8)
+    id_info = {
+        'road': np.zeros(shape=MAX_ID_NUM, dtype=np.uint8),
+        'time': np.zeros(shape=MAX_ID_NUM),
+        'is_parking_violate': np.zeros(shape=MAX_ID_NUM, dtype=np.uint8),
+        'is_count': np.zeros(shape=MAX_ID_NUM, dtype=np.uint8)
+    }
+
 
     for image in image_list:
-        if image == '.DS_Store':
-            continue
-        print(image)
         image_path = os.path.join(image_folder, image)
         original_image = cv2.imread(image_path)
         original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
@@ -139,6 +106,7 @@ def main(_argv):
         image_data = image_data / 255.
         image_data = image_data[np.newaxis, ...].astype(np.float32)
 
+        start = time.time()
         # run detections on tflite if flag is set
         if FLAGS.framework == 'tf':
             # YOLO V4 inference
@@ -194,15 +162,19 @@ def main(_argv):
                 deleted_indx.append(i)
             else:
                 names.append(class_name)
+
+        print('YOLO Time :', time.time()-start)
+
+        start = time.time()
+
         names = np.array(names)
 
         bboxes = np.delete(bboxes, deleted_indx, axis=0)
         scores = np.delete(scores, deleted_indx, axis=0)
-
-
         bboxes = np.array(bboxes, dtype=np.uint16)
         features = encoder(original_image, bboxes)
         detections = [Detection(bbox, score, class_name, feature) for bbox, score, class_name, feature in zip(bboxes, scores, names, features)]
+
 
         # run non-maxima supression
         boxs = np.array([d.tlwh for d in detections])
@@ -212,37 +184,40 @@ def main(_argv):
         detections = [detections[i] for i in indices]           
 
 
-        # Call the tracker
+        # call the tracker
         tracker.predict()
         tracker.update(detections)
-        track_id_list, track_bboxes_list = get_tracking_list(tracker)
+        track_ids, track_bboxes = get_tracking_list(tracker)
+
+        print('DeepSort Time :', time.time()-start)
+
+        start = time.time()
+
+
+        # get road infos
         risks = mu.get_risks(lanes['solid_lane'], bboxes)
+        car_count, id_info = mu.update(lanes, track_bboxes, car_count, track_ids, id_info)
+        parking_violate_bboxes = mu.get_parking_violate_box(track_bboxes, track_ids, id_info)
 
-        car_count, id_road, id_time, id_is_parking_violate, id_is_count = \
-            mu.update(track_bboxes_list, lanes, car_count, track_id_list, id_road, id_time, id_is_parking_violate, id_is_count)
-        track_id_list, track_bboxes_array = np.array(track_id_list), np.array(track_bboxes_list)
+        print('Main Util Time :', time.time()-start)
 
-        
-        violate_ids = np.argwhere(id_is_parking_violate).flatten()
-        parking_bboxes = []
-        
-        for i, id in enumerate(track_id_list):
-            if id in violate_ids:
-                parking_bboxes.append(track_bboxes_array[i])
 
-        image = draw_image(original_image, lanes['cnt_lane'][1], bboxes, risks, car_count, parking_bboxes)
+        # draw image
+        image = draw_image(original_image, lanes, bboxes, parking_violate_bboxes, risks, car_count)
+        if video_path is not None:
+            out.write(image)
 
-        cv2.imshow("Output Video", image)
-        cv2.imwrite('result.jpg', image)
-        out.write(image)
 
         # q 누르면 종료
         if cv2.waitKey(1) == ord('q'):
             break
 
-    out.release()
+
+    if video_path is not None:
+        out.release()
     cv2.destroyAllWindows()
     print('종료')
+
 
 if __name__ == '__main__':
     try:
