@@ -1,7 +1,7 @@
 # vim: expandtab:ts=4:sw=4
 
 
-from score_util import score
+from deep_sort.score_util import score
 
 
 class TrackState:

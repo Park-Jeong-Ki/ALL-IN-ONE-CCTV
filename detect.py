@@ -15,19 +15,19 @@ from tensorflow.python.saved_model import tag_constants
 import cv2
 import numpy as np
 from core.config import cfg
-import main_util as mu
-from get_lane import get_lanes
+import util.main_util as mu
+from util.get_lane import get_lanes
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 from config import *
-from image_util import draw_image
+from util.image_util import draw_image
 import time
 
 # deep sort imports
 from deep_sort import preprocessing, nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
-from deepsort_util import get_tracking_list
+from util.deepsort_util import get_tracking_list
 from tools import generate_detections as gdet
 
 
@@ -36,8 +36,8 @@ flags.DEFINE_string('weights', './checkpoints/yolov4-608',
                     'path to weights file')
 flags.DEFINE_integer('size', 608, 'resize images to')
 flags.DEFINE_boolean('tiny', False, 'yolo or yolo-tiny')
-flags.DEFINE_string('lane', 'lane_1.json', 'path of lane')             
-flags.DEFINE_string('image', './image_1', 'path of image')
+flags.DEFINE_string('lane', 'lane.json', 'path of lane')             
+flags.DEFINE_string('image', 'input_data', 'path of image')
 flags.DEFINE_string('model', 'yolov4', 'yolov3 or yolov4')
 flags.DEFINE_string('output', 'result.jpg', 'path to output image')
 flags.DEFINE_float('iou', 0.45, 'iou threshold')
