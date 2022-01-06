@@ -32,7 +32,7 @@ https://developer.nvidia.com/cuda-10.1-download-archive-update2
 
 Download pre-trained weights file: https://drive.google.com/file/d/1eU_9UjVwhpilSw4pL4curM-Hsu_qBqLA/view?usp=sharing
 
-Copy and paste all foleder from your downloads into the this repository.
+Copy and paste all folder from your downloads into the this repository.
 
 
 ### References  
