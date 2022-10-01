@@ -40,4 +40,4 @@ Copy and paste all folder from your downloads into the this repository.
    Huge shoutout goes to hunglc007 and nwojke for creating the backbones of this repository:
   * [tensorflow-yolov4-tflite](https://github.com/hunglc007/tensorflow-yolov4-tflite)
   * [Deep SORT Repository](https://github.com/nwojke/deep_sort)
-  * [yolov4-deppsort](https://github.com/theAIGuysCode/yolov4-deepsort)
+  * [yolov4-deepsort](https://github.com/theAIGuysCode/yolov4-deepsort)
